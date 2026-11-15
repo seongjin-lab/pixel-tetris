@@ -9,6 +9,8 @@ const (
 	boardWidth   = 10
 	boardHeight  = 20
 	clearTick    = 45 * time.Millisecond
+	dropTick     = 16 * time.Millisecond
+	dropDuration = 105 * time.Millisecond
 	rewardTick   = 140 * time.Millisecond
 	rewardFrames = 6
 )
@@ -44,19 +46,21 @@ var shapes = [7][4]point{
 }
 
 type game struct {
-	board      [boardHeight][boardWidth]int
-	current    piece
-	next       int
-	bag        []int
-	score      int
-	lines      int
-	streak     int
-	reward     clearReward
-	paused     bool
-	over       bool
-	clearing   [boardHeight]bool
-	clearCount int
-	clearFrame int
+	board        [boardHeight][boardWidth]int
+	current      piece
+	next         int
+	bag          []int
+	score        int
+	lines        int
+	streak       int
+	reward       clearReward
+	paused       bool
+	over         bool
+	clearing     [boardHeight]bool
+	clearCount   int
+	clearFrame   int
+	dropStarted  time.Time
+	dropDistance int
 }
 
 func newGame() *game {
@@ -146,6 +150,38 @@ func (g *game) drop() {
 	g.lock()
 }
 
+func (g *game) beginDrop(now time.Time) bool {
+	g.dropDistance = g.landing().origin.y - g.current.origin.y
+	if g.dropDistance == 0 {
+		g.drop()
+		return true
+	}
+	g.dropStarted = now
+	return false
+}
+
+func (g *game) dropping() bool {
+	return !g.dropStarted.IsZero()
+}
+
+func (g *game) dropOffset(now time.Time) float64 {
+	progress := min(1, max(0, float64(now.Sub(g.dropStarted))/float64(dropDuration)))
+	return float64(g.dropDistance) * progress * progress
+}
+
+func (g *game) advanceDrop(now time.Time) bool {
+	if now.Sub(g.dropStarted) < dropDuration {
+		return false
+	}
+	g.finishDrop()
+	return true
+}
+
+func (g *game) finishDrop() {
+	g.dropStarted = time.Time{}
+	g.drop()
+}
+
 func (g *game) step(soft bool) bool {
 	if !g.move(0, 1) {
 		g.lock()
@@ -225,6 +261,9 @@ func (g *game) level() int {
 }
 
 func (g *game) interval() time.Duration {
+	if g.dropping() {
+		return dropTick
+	}
 	if g.clearCount != 0 {
 		return clearTick
 	}

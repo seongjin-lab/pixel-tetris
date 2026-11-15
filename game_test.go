@@ -2,6 +2,7 @@ package main
 
 import (
 	"testing"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 )
@@ -157,5 +158,29 @@ func TestGhostUsesSameBlockShape(t *testing.T) {
 				t.Fatalf("네모 블록의 착지 미리보기에 다른 모양이나 색상이 표시되었습니다 (열 %d, 행 %d)", x, landingRow)
 			}
 		}
+	}
+}
+
+func TestAnimatedDropScoresOnlyOnLanding(t *testing.T) {
+	g := newGame()
+	g.current = piece{4, point{3, 0}, shapes[3]}
+	start := time.Unix(1, 0)
+	landing := g.landing()
+	distance := landing.origin.y - g.current.origin.y
+	if g.beginDrop(start) || !g.dropping() || g.interval() != dropTick {
+		t.Fatal("즉시 낙하의 애니메이션이 시작되지 않았습니다")
+	}
+	half := start.Add(dropDuration / 2)
+	if offset := g.dropOffset(half); offset != float64(distance)/4 {
+		t.Fatalf("낙하 중간 위치가 다릅니다 (%f)", offset)
+	}
+	if g.advanceDrop(half) || g.score != 0 || g.board[boardHeight-1][4] != 0 {
+		t.Fatal("착지 전에 점수 또는 보드가 바뀌었습니다")
+	}
+	if !g.advanceDrop(start.Add(dropDuration)) || g.dropping() {
+		t.Fatal("애니메이션이 끝난 뒤에도 블록이 고정되지 않았습니다")
+	}
+	if g.score != 2*distance || g.board[boardHeight-1][4] != 4 {
+		t.Fatalf("착지 점수 또는 블록 위치가 다릅니다 (점수 %d)", g.score)
 	}
 }

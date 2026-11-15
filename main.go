@@ -72,6 +72,10 @@ func runScreen(screen tcell.Screen) error {
 			width, height := screen.Size()
 			if width >= viewWidth && height >= viewHeight && !g.paused && !g.over {
 				switch {
+				case g.dropping():
+					if g.advanceDrop(time.Now()) {
+						audio.playLock(g)
+					}
 				case g.clearCount != 0:
 					if g.advanceClear() && g.reward.visible() {
 						resetTimer(rewardTimer, rewardTick)
@@ -111,13 +115,22 @@ func runScreen(screen tcell.Screen) error {
 					g = newGame()
 					resetTimer(fall, g.interval())
 				case event.Rune() == 'p' && !g.over:
-					g.paused = !g.paused
-					resetTimer(fall, g.interval())
-				case !g.paused && !g.over && g.clearCount == 0:
-					width, height := screen.Size()
-					if width >= viewWidth && height >= viewHeight && playKey(g, event, audio) {
+					if g.dropping() {
+						g.finishDrop()
 						audio.playLock(g)
-						resetTimer(fall, g.interval())
+					}
+					g.paused = !g.paused && !g.over
+					resetTimer(fall, g.interval())
+				case !g.paused && !g.over && g.clearCount == 0 && !g.dropping():
+					width, height := screen.Size()
+					if width >= viewWidth && height >= viewHeight {
+						locked := playKey(g, event, audio)
+						if locked {
+							audio.playLock(g)
+						}
+						if locked || g.dropping() {
+							resetTimer(fall, g.interval())
+						}
 					}
 				}
 			}
@@ -168,8 +181,7 @@ func playKey(g *game, event *tcell.EventKey, audio *soundPlayer) bool {
 	case event.Key() == tcell.KeyDown || event.Rune() == 's':
 		return g.step(true)
 	case event.Rune() == ' ':
-		g.drop()
-		return true
+		return g.beginDrop(time.Now())
 	}
 	return false
 }

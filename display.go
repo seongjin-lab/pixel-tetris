@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/mattn/go-runewidth"
@@ -91,7 +92,17 @@ func draw(screen tcell.Screen, g *game, audio *soundPlayer) {
 
 	if !g.over && g.clearCount == 0 {
 		d.drawPiece(g.landing(), true)
-		d.drawPiece(g.current, false)
+		p := g.current
+		if g.dropping() {
+			offset := min(g.dropDistance-1, int(g.dropOffset(time.Now())))
+			if offset > 0 {
+				trail := p
+				trail.origin.y += max(0, offset-2)
+				d.drawPiece(trail, true)
+			}
+			p.origin.y += offset
+		}
+		d.drawPiece(p, false)
 	}
 
 	for i, stat := range [...]struct {
