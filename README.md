@@ -10,6 +10,8 @@
 
 [릴리스](https://github.com/seongjin-lab/pixel-tetris/releases/latest)에서 Apple Silicon 맥용 앱이나 CPU에 맞는 리눅스 파일을 내려받을 수 있습니다. 맥에서는 압축을 풀고 **픽셀 테트리스** 앱을 열면 전용 창이 뜹니다. [리눅스 설치 안내](LINUX.md)에는 배포판별 실행 방법이 있습니다.
 
+윈도우 x64에서는 `pixel-tetris-windows-amd64.zip`의 압축을 모두 풀고 `PixelTetris.exe`를 열면 전용 창이 뜹니다. 효과음은 윈도우에서 바로 재생됩니다.
+
 Go 1.22 이상이 설치된 환경에서는 터미널 버전을 소스에서 실행할 수 있습니다.
 
 ```sh
@@ -22,7 +24,13 @@ go run .
 ./macos/build.sh
 ```
 
-터미널은 47열 × 24행 이상으로 열어 주세요.
+윈도우에서 전용 창 앱을 빌드하려면 Go를 설치하고 PowerShell에서 다음 명령을 실행하세요. 압축 파일은 `build` 폴더에 만들어집니다.
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\windows\build.ps1
+```
+
+터미널 버전을 실행할 때는 터미널을 47열 × 24행 이상으로 열어 주세요.
 시작 화면에서 `게임 시작`을 클릭하거나 Enter를 누르면 게임이 시작됩니다.
 
 ## 조작

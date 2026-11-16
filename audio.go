@@ -4,7 +4,6 @@ import (
 	"context"
 	"embed"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sync"
@@ -22,17 +21,8 @@ type soundPlayer struct {
 }
 
 func newSoundPlayer() *soundPlayer {
-	names := []string{"afplay"}
-	if runtime.GOOS == "linux" {
-		names = []string{"pw-play", "paplay", "aplay"}
-	}
-	var commands []string
-	for _, name := range names {
-		if command, err := exec.LookPath(name); err == nil {
-			commands = append(commands, command)
-		}
-	}
-	if len(commands) == 0 {
+	commands := soundCommands()
+	if len(commands) == 0 && runtime.GOOS != "windows" {
 		return nil
 	}
 	dir, err := os.MkdirTemp("", "pixel-tetris-")
@@ -59,6 +49,7 @@ func (p *soundPlayer) toggle() {
 	if p.cancel != nil {
 		p.cancel()
 		p.cancel = nil
+		stopPlayback()
 	} else {
 		p.ctx, p.cancel = context.WithCancel(context.Background())
 	}
@@ -68,17 +59,7 @@ func (p *soundPlayer) play(name string) {
 	if p == nil || p.cancel == nil {
 		return
 	}
-	ctx := p.ctx
-	file := filepath.Join(p.dir, name+".wav")
-	p.playing.Add(1)
-	go func() {
-		defer p.playing.Done()
-		for _, command := range p.commands {
-			if ctx.Err() != nil || exec.CommandContext(ctx, command, file).Run() == nil {
-				return
-			}
-		}
-	}()
+	p.playFile(filepath.Join(p.dir, name+".wav"))
 }
 
 func (p *soundPlayer) close() {
@@ -87,6 +68,7 @@ func (p *soundPlayer) close() {
 	}
 	if p.cancel != nil {
 		p.cancel()
+		stopPlayback()
 	}
 	p.playing.Wait()
 	_ = os.RemoveAll(p.dir)
